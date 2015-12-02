@@ -1,25 +1,21 @@
 {
-	"resources": [
-		{
-			"name": "bgImage",
-			"type": "image",
-			"url": "assets/bg.jpg"
-		},
-		{
-			"name": "egretIcon",
-			"type": "image",
-			"url": "assets/egret_icon.png"
-		},
-		{
-			"name": "description",
-			"type": "json",
-			"url": "config/description.json"
-		}
-	],
-	"groups": [
-		{
-			"name": "preload",
-			"keys": "bgImage,egretIcon"
-		}
-	]
+    "resources": [
+
+        {"name":"reborn_normal","type":"image","url":"reborn_normal.png"},
+        {"name":"reborn_click","type":"image","url":"reborn_click.png"},
+        {"name":"font_black","type":"font","url":"font/font_black.fnt"},
+        {"name":"font_orange","type":"font","url":"font/font_orange.fnt"},
+        {"name":"jueshe_png","type":"image","url":"mc/jueshe.png"},
+        {"name":"jueshe_json","type":"json","url":"mc/jueshe.json"},
+
+        {"name":"sprites","type":"sheet","url":"sheet/sprites.json"},
+        {"name":"score_on_over","type":"font","url":"font/score_on_over.fnt"},
+        {"name":"public_v2","type":"sheet","url":"sheet/public_v2.json"}
+    ],
+    "groups": [
+        {
+            "name": "preload",
+            "keys": "reborn_normal,reborn_click,jueshe_png,jueshe_json,font_orange,font_black,sprites,score_on_over,public_v2"
+        }
+    ]
 }
