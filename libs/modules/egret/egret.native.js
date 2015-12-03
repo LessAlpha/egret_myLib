@@ -949,7 +949,6 @@ var egret;
 (function (egret) {
     var native;
     (function (native) {
-        native.$currentSurface;
         /**
          * @private
          * 呈现最终绘图结果的画布
@@ -1445,7 +1444,7 @@ var egret;
                     player.displayFPS(option.showFPS, option.showLog, option.logFilter, option.fpsStyles);
                 }
                 this.playerOption = option;
-                this.stage = stage;
+                this.$stage = stage;
                 this.player = player;
                 this.nativeTouch = touch;
                 //this.nativeInput = nativeInput;
@@ -1457,7 +1456,7 @@ var egret;
                 var option = this.playerOption;
                 var screenWidth = egret_native.EGTView.getFrameWidth();
                 var screenHeight = egret_native.EGTView.getFrameHeight();
-                var stageSize = egret.sys.screenAdapter.calculateStageSize(this.stage.$scaleMode, screenWidth, screenHeight, option.contentWidth, option.contentHeight);
+                var stageSize = egret.sys.screenAdapter.calculateStageSize(this.$stage.$scaleMode, screenWidth, screenHeight, option.contentWidth, option.contentHeight);
                 var stageWidth = stageSize.stageWidth;
                 var stageHeight = stageSize.stageHeight;
                 var displayWidth = stageSize.displayWidth;
@@ -1471,6 +1470,12 @@ var egret;
                 //    scaley = displayHeight / stageHeight;
                 //this.webTouchHandler.updateScaleMode(scalex, scaley, rotation);
                 //this.webInput.$updateSize();
+            };
+            p.setContentSize = function (width, height) {
+                var option = this.playerOption;
+                option.contentWidth = width;
+                option.contentHeight = height;
+                this.updateScreenSize();
             };
             /**
              * @private
@@ -1522,6 +1527,7 @@ var egret;
          */
         native.$supportCanvas = egret_native.Canvas ? true : false;
         var isRunning = false;
+        var playerList = [];
         function runEgret() {
             if (isRunning) {
                 return;
@@ -1533,6 +1539,11 @@ var egret;
                 if (language in egret.$locale_strings)
                     egret.$language = language;
             }
+            try {
+                egret.Capabilities.$setNativeCapabilities(egret_native.getVersion());
+            }
+            catch (e) {
+            }
             var ticker = egret.sys.$ticker;
             var mainLoop = function () {
                 ticker.update();
@@ -1542,7 +1553,21 @@ var egret;
             if (!egret.sys.screenAdapter) {
                 egret.sys.screenAdapter = new egret.sys.ScreenAdapter();
             }
-            new native.NativePlayer();
+            //todo
+            var player = new native.NativePlayer();
+            playerList.push(player);
+            //老版本runtime不支持canvas,关闭脏矩形
+            if (!native.$supportCanvas) {
+                player.$stage.dirtyRegionPolicy = egret.DirtyRegionPolicy.OFF;
+                egret.sys.DisplayList.prototype.setDirtyRegionPolicy = function () {
+                };
+            }
+        }
+        function updateAllScreens() {
+            var length = playerList.length;
+            for (var i = 0; i < length; i++) {
+                playerList[i].updateScreenSize();
+            }
         }
         function toArray(argument) {
             var args = [];
@@ -1579,6 +1604,7 @@ var egret;
             };
         }
         egret.runEgret = runEgret;
+        egret.updateAllScreens = updateAllScreens;
     })(native = egret.native || (egret.native = {}));
 })(egret || (egret = {}));
 //////////////////////////////////////////////////////////////////////////////////////
@@ -1949,7 +1975,7 @@ var egret;
                         _this.$loops--;
                     }
                     /////////////
-                    _this.audio.load();
+                    //this.audio.load();
                     _this.$play();
                 };
                 audio.addEventListener("ended", this.onPlayEnd);
@@ -2771,7 +2797,12 @@ var egret;
                         self._response = content;
                         egret.Event.dispatchEvent(self, egret.Event.COMPLETE);
                     };
-                    egret_native.readFileAsync(self._url, promise);
+                    if (self._responseType == egret.HttpResponseType.ARRAY_BUFFER) {
+                        egret_native.readFileAsync(self._url, promise, "ArrayBuffer");
+                    }
+                    else {
+                        egret_native.readFileAsync(self._url, promise);
+                    }
                 }
                 function download() {
                     var promise = egret.PromiseObject.create();
@@ -2917,7 +2948,7 @@ var egret;
                 var self = this;
                 var promise = new egret.PromiseObject();
                 promise.onSuccessFunc = function (bitmapData) {
-                    self.data = native.toBitmapData(bitmapData);
+                    self.data = egret.$toBitmapData(bitmapData);
                     self.dispatchEventWith(egret.Event.COMPLETE);
                 };
                 promise.onErrorFunc = function () {
@@ -2970,133 +3001,149 @@ var egret;
 //////////////////////////////////////////////////////////////////////////////////////
 var egret;
 (function (egret) {
-    /**
-     * @classdesc
-     * @implements egret.StageText
-     * @private
-     * @version Egret 2.4
-     * @platform Web,Native
-     */
-    var NativeStageText = (function (_super) {
-        __extends(NativeStageText, _super);
+    var native;
+    (function (native) {
         /**
+         * @classdesc
+         * @implements egret.StageText
+         * @private
          * @version Egret 2.4
          * @platform Web,Native
          */
-        function NativeStageText() {
-            _super.call(this);
+        var NativeStageText = (function (_super) {
+            __extends(NativeStageText, _super);
             /**
-             * @private
+             * @version Egret 2.4
+             * @platform Web,Native
              */
-            this.textValue = "";
-            /**
-             * @private
-             */
-            this.isFinishDown = false;
-            this.textValue = "";
-        }
-        var d = __define,c=NativeStageText;p=c.prototype;
-        /**
-         * @private
-         *
-         * @returns
-         */
-        p.$getText = function () {
-            if (!this.textValue) {
+            function NativeStageText() {
+                _super.call(this);
+                /**
+                 * @private
+                 */
+                this.textValue = "";
+                /**
+                 * @private
+                 */
+                this.colorValue = 0xffffff;
+                /**
+                 * @private
+                 */
+                this.isFinishDown = false;
                 this.textValue = "";
             }
-            return this.textValue;
-        };
-        /**
-         * @private
-         *
-         * @param value
-         */
-        p.$setText = function (value) {
-            this.textValue = value;
-            return true;
-        };
-        /**
-         * @private
-         *
-         */
-        p.$onBlur = function () {
-        };
-        //全屏键盘
-        p.showScreenKeyboard = function () {
-            var self = this;
-            self.dispatchEvent(new egret.Event("focus"));
-            egret.Event.dispatchEvent(self, "focus", false, { "showing": true });
-            egret_native.EGT_TextInput = function (appendText) {
-                if (self.$textfield.multiline) {
-                    if (self.isFinishDown) {
-                        self.isFinishDown = false;
+            var d = __define,c=NativeStageText;p=c.prototype;
+            /**
+             * @private
+             *
+             * @returns
+             */
+            p.$getText = function () {
+                if (!this.textValue) {
+                    this.textValue = "";
+                }
+                return this.textValue;
+            };
+            /**
+             * @private
+             *
+             * @param value
+             */
+            p.$setText = function (value) {
+                this.textValue = value;
+                return true;
+            };
+            p.$setColor = function (value) {
+                this.colorValue = value;
+                return true;
+            };
+            /**
+             * @private
+             *
+             */
+            p.$onBlur = function () {
+            };
+            //全屏键盘
+            p.showScreenKeyboard = function () {
+                var self = this;
+                self.dispatchEvent(new egret.Event("focus"));
+                egret.Event.dispatchEvent(self, "focus", false, { "showing": true });
+                egret_native.EGT_TextInput = function (appendText) {
+                    if (self.$textfield.multiline) {
                         self.textValue = appendText;
                         self.dispatchEvent(new egret.Event("updateText"));
+                        if (self.isFinishDown) {
+                            self.isFinishDown = false;
+                            self.dispatchEvent(new egret.Event("blur"));
+                        }
                     }
-                }
-                else {
-                    self.textValue = appendText.replace(/[\n|\r]/, "");
-                    //关闭软键盘
-                    egret_native.TextInputOp.setKeybordOpen(false);
-                    self.dispatchEvent(new egret.Event("updateText"));
-                    self.dispatchEvent(new egret.Event("blur"));
-                }
-            };
-            //点击完成
-            egret_native.EGT_keyboardFinish = function () {
-                if (self.$textfield.multiline) {
-                    self.isFinishDown = true;
-                }
-                self.dispatchEvent(new egret.Event("blur"));
-            };
-        };
-        /**
-         * @private
-         *
-         */
-        p.$show = function () {
-            var self = this;
-            egret_native.EGT_getTextEditerContentText = function () {
-                return self.$getText();
-            };
-            egret_native.EGT_keyboardDidShow = function () {
-                //if (egret_native.TextInputOp.isFullScreenKeyBoard()) {//横屏
-                //}
-                self.showScreenKeyboard();
-                egret_native.EGT_keyboardDidShow = function () {
+                    else {
+                        self.textValue = appendText.replace(/[\n|\r]/, "");
+                        //关闭软键盘
+                        egret_native.TextInputOp.setKeybordOpen(false);
+                        self.dispatchEvent(new egret.Event("updateText"));
+                        self.dispatchEvent(new egret.Event("blur"));
+                    }
+                };
+                //点击完成
+                egret_native.EGT_keyboardFinish = function () {
+                    if (self.$textfield.multiline) {
+                        self.isFinishDown = true;
+                    }
                 };
             };
-            var textfield = this.$textfield;
-            var inputMode = textfield.multiline ? 0 : 6;
-            var inputFlag = -1; //textfield.displayAsPassword ? 0 : -1;
-            var returnType = 1;
-            var maxLength = textfield.maxChars <= 0 ? -1 : textfield.maxChars;
-            egret_native.TextInputOp.setKeybordOpen(true, JSON.stringify({ "inputMode": inputMode, "inputFlag": inputFlag, "returnType": returnType, "maxLength": maxLength }));
-        };
-        /**
-         * @private
-         *
-         */
-        p.$hide = function () {
-            this.dispatchEvent(new egret.Event("blur"));
-            egret_native.TextInputOp.setKeybordOpen(false);
-        };
-        p.$resetStageText = function () {
-        };
-        p.$addToStage = function () {
-        };
-        p.$removeFromStage = function () {
-        };
-        p.$setTextField = function (value) {
-            this.$textfield = value;
-            return true;
-        };
-        return NativeStageText;
-    })(egret.EventDispatcher);
-    egret.NativeStageText = NativeStageText;
-    egret.registerClass(NativeStageText,"egret.NativeStageText",["egret.StageText"]);
-    egret.StageText = NativeStageText;
+            /**
+             * @private
+             *
+             */
+            p.$show = function () {
+                var self = this;
+                egret_native.TextInputOp.setKeybordOpen(false);
+                egret_native.EGT_getTextEditerContentText = function () {
+                    return self.$getText();
+                };
+                egret_native.EGT_keyboardDidShow = function () {
+                    //if (egret_native.TextInputOp.isFullScreenKeyBoard()) {//横屏
+                    //}
+                    self.showScreenKeyboard();
+                    egret_native.EGT_keyboardDidShow = function () {
+                    };
+                };
+                egret_native.EGT_keyboardDidHide = function () {
+                };
+                egret_native.EGT_deleteBackward = function () {
+                };
+                var textfield = this.$textfield;
+                var inputMode = textfield.multiline ? 0 : 6;
+                var inputFlag = -1; //textfield.displayAsPassword ? 0 : -1;
+                var returnType = 1;
+                var maxLength = textfield.maxChars <= 0 ? -1 : textfield.maxChars;
+                egret_native.TextInputOp.setKeybordOpen(true, JSON.stringify({ "inputMode": inputMode, "inputFlag": inputFlag, "returnType": returnType, "maxLength": maxLength }));
+            };
+            /**
+             * @private
+             *
+             */
+            p.$hide = function () {
+                this.dispatchEvent(new egret.Event("blur"));
+                egret_native.TextInputOp.setKeybordOpen(false);
+            };
+            p.$resetStageText = function () {
+            };
+            p.$addToStage = function () {
+            };
+            p.$removeFromStage = function () {
+            };
+            p.$setTextField = function (value) {
+                this.$textfield = value;
+                return true;
+            };
+            return NativeStageText;
+        })(egret.EventDispatcher);
+        native.NativeStageText = NativeStageText;
+        egret.registerClass(NativeStageText,"egret.native.NativeStageText",["egret.StageText"]);
+        egret.StageText = NativeStageText;
+    })(native = egret.native || (egret.native = {}));
 })(egret || (egret = {}));
 //////////////////////////////////////////////////////////////////////////////////////
 //
